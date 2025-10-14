@@ -3,25 +3,35 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hello, Warpcast!</title>
+  <title>Hello, Warpcast! + Auth</title>
 
-  <!-- Farcaster embed card -->
+  <!-- Карточка для шеринга в Farcaster -->
   <meta name="fc:miniapp" content='{
     "version":"1",
-    "imageUrl":"https://YOUR_DOMAIN/og.png",
-    "button":{"title":"Open","action":{"type":"launch_miniapp","url":"https://YOUR_DOMAIN/"}}
+    "imageUrl":"https://allan-miniapp.vercel.app/og.png",
+    "button":{
+      "title":"Open",
+      "action":{"type":"launch_miniapp","url":"https://allan-miniapp.vercel.app/"}
+    }
   }' />
 
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #0e0f13; color: #e6e6e6; display: grid; place-items: center; min-height: 100dvh; }
-    .card { width: min(560px, 92vw); border: 1px solid #2b2f3a; border-radius: 16px; padding: 24px; background: #14161c; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
-    h1 { margin: 0 0 12px 0; font-size: 28px; }
-    p { opacity: .9; }
+    :root { --bg:#0e0f13; --panel:#14161c; --muted:#9aa3b2; --border:#2b2f3a; --fg:#e6e6e6; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: var(--bg); color: var(--fg); display: grid; place-items: center; min-height: 100dvh; }
+    .card { width: min(640px, 94vw); border: 1px solid var(--border); border-radius: 16px; padding: 22px; background: var(--panel); box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    h1 { margin: 0 0 12px; font-size: 28px; }
+    p { margin: 8px 0; color: var(--muted); }
     .row { display: flex; gap: 16px; align-items: center; }
     .pfp { width: 72px; height: 72px; border-radius: 50%; overflow: hidden; background: #222; flex: 0 0 auto; }
     .pfp img { width: 100%; height: 100%; object-fit: cover; }
-    .open { margin-top: 16px; display: inline-block; padding: 12px 16px; border-radius: 10px; border: 1px solid #2b2f3a; text-decoration: none; color: #e6e6e6; }
-    .note { font-size: 13px; opacity: .8; margin-top: 8px; }
+    .actions { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+    button, a.btn { padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--fg); cursor: pointer; text-decoration: none; }
+    code { background: #0d0f14; border: 1px solid var(--border); padding: 2px 6px; border-radius: 6px; }
+    .small { font-size: 13px; }
+    .ok { color: #6de38f; }
+    .err { color: #f66; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
     .hide { display: none; }
   </style>
 </head>
@@ -31,12 +41,19 @@
       <div class="pfp" id="pfp"></div>
       <div>
         <h1 id="hello">Loading…</h1>
-        <p id="sub">Welcome to your first Farcaster Mini App 🎉</p>
+        <p>Welcome to your first Farcaster Mini App with Quick Auth 🎉</p>
       </div>
     </div>
-    <a class="open" id="openLink" href="#">Open in Warpcast</a>
-    <div class="note">Tip: if you see “Loading…” forever, ensure <code>sdk.actions.ready()</code> resolves and the app is served over HTTPS.</div>
-    <div id="fallback" class="note hide">Looks like we are outside a Farcaster client. You can still deploy and test via the Mini App Debug Tool.</div>
+
+    <div class="actions">
+      <button id="btnAuth">🔐 Sign in (get JWT)</button>
+      <a class="btn" id="openLink" href="#">Open in Warpcast</a>
+    </div>
+
+    <p class="small">Tip: if you see “Loading…” forever, ensure <code>sdk.actions.ready()</code> resolves and the app is served over HTTPS.</p>
+
+    <div id="status" class="small mono"></div>
+    <div id="fallback" class="small err hide">Looks like we are outside a Farcaster client. You can still deploy and test via the Mini App Debug Tool.</div>
   </div>
 
   <script type="module">
@@ -44,32 +61,81 @@
 
     const hello = document.getElementById('hello')
     const pfp = document.getElementById('pfp')
-    const sub = document.getElementById('sub')
     const fallback = document.getElementById('fallback')
+    const statusEl = document.getElementById('status')
+    const btnAuth = document.getElementById('btnAuth')
     const openLink = document.getElementById('openLink')
 
-    const YOUR_DOMAIN = "YOUR_DOMAIN"
-    openLink.href = `https://farcaster.xyz/miniapps/launch?url=${encodeURIComponent('https://' + YOUR_DOMAIN + '/')}`
+    const DOMAIN = "allan-miniapp.vercel.app"
+    openLink.href = `https://farcaster.xyz/miniapps/launch?url=${encodeURIComponent('https://' + DOMAIN + '/')}`
+
+    function log(msg, cls) {
+      const line = document.createElement('div')
+      if (cls) line.classList.add(cls)
+      line.textContent = msg
+      statusEl.appendChild(line)
+    }
 
     ;(async () => {
       try {
         await sdk.actions.ready()
-        const user = await sdk.user.getInfo().catch(() => null)
-        const name = user?.username || 'friend'
+        const info = await sdk.user.getInfo().catch(() => null)
+        const name = info?.username || 'friend'
         hello.textContent = `👋 Hello, ${name}!`
-        if (user?.pfpUrl) {
+        if (info?.pfpUrl) {
           const img = new Image()
-          img.src = user.pfpUrl
+          img.src = info.pfpUrl
           img.alt = 'pfp'
           img.referrerPolicy = 'no-referrer'
           pfp.appendChild(img)
-        } else {
-          pfp.style.background = '#222'
         }
+        log('SDK ready ✓', 'ok')
       } catch (e) {
         fallback.classList.remove('hide')
-        console.error('MiniApp init error:', e)
+        log('MiniApp init error: ' + (e?.message || e), 'err')
+        console.error(e)
       }
+    })()
+
+    btnAuth.addEventListener('click', async () => {
+      statusEl.innerHTML = ''
+      log('Starting Quick Auth…')
+      try {
+        let jwt = null
+
+        // Пробуем разные методы (SDK может отличаться по версиям клиентов)
+        if (sdk.auth?.quickAuth) {
+          jwt = await sdk.auth.quickAuth()
+        } else if (sdk.auth?.signIn) {
+          const res = await sdk.auth.signIn()
+          jwt = res?.token || res?.jwt || null
+        } else if (sdk.actions?.signIn) {
+          const res = await sdk.actions.signIn()
+          jwt = res?.token || res?.jwt || null
+        }
+
+        if (!jwt) throw new Error('Auth method not available in this client/SDK version')
+
+        const short = String(jwt).slice(0, 48) + '…'
+        log('JWT received: ' + short, 'ok')
+
+        // Отправим токен на наш бэкенд для черновой проверки/декода
+        const resp = await fetch('/api/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: jwt })
+        })
+        const data = await resp.json().catch(() => ({}))
+        log('Backend reply:\n' + JSON.stringify(data, null, 2), resp.ok ? 'ok' : 'err')
+      } catch (e) {
+        log('Auth error: ' + (e?.message || e), 'err')
+        console.error(e)
+      }
+    })
+  </script>
+</body>
+</html>
+
     })()
   </script>
 </body>
