@@ -55,8 +55,9 @@ export default async function handler(req, res) {
 
     // Node crypto: создаём публичный ключ из JWK и проверяем подпись
     const { createPublicKey, verify } = await import('node:crypto')
-    const keyObject = createPublicKey({ key: jwk, format: 'jwk' }) // ← поддерживается Node 16+
-    const data = Buffer.from(`${hB64}.${pB64}`) // именно base64url-пары в ASCII/UTF-8
+    const keyObject = createPublicKey({ key: jwk, format: 'jwk' })
+    // Подписывается строка `${header}.${payload}` в base64url-выгляде
+    const data = Buffer.from(`${hB64}.${pB64}`)
 
     const isValid = verify('RSA-SHA256', data, keyObject, signature)
 
