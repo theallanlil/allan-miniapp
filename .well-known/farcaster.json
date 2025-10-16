@@ -1,11 +1,11 @@
 {
-  "name": "Hello Warpcast",
-  "description": "The tiniest Farcaster Mini App — greets the signed-in user.",
-  "iconUrl": "https://allan-miniapp.vercel.app/og.png",
+  "name": "Allan MiniApp",
+  "description": "A minimal Farcaster Mini App that greets the user and performs Sign in to obtain a JWT.",
+  "iconUrl": "https://allan-miniapp.vercel.app/icon.svg",
   "url": "https://allan-miniapp.vercel.app/",
   "defaultLaunchPath": "/",
   "developer": {
-    "name": "Allan",
+    "name": "Allan Nikitin",
     "url": "https://allan-miniapp.vercel.app/"
   },
   "contactEmail": "you@example.com",
