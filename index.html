@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Hello, Warpcast! + Auth</title>
 
+  <!-- Карточка для шеринга в Farcaster -->
   <meta name="fc:miniapp" content='{
     "version":"1",
     "imageUrl":"https://allan-miniapp.vercel.app/og.png",
@@ -26,7 +27,7 @@
     .pfp img { width: 100%; height: 100%; object-fit: cover; }
     .actions { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
     button, a.btn { padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--fg); cursor: pointer; text-decoration: none; }
-    code { background: #0d0f14; border: 1px solid var(--border); padding: 2px 6px; border-radius: 6px; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
     .small { font-size: 13px; }
     .ok { color: #6de38f; }
     .err { color: #f66; }
@@ -75,9 +76,19 @@
       statusEl.appendChild(line)
     }
 
-    ;(async () => {
-      try {
-        await sdk.actions.ready()
+    try {
+      await sdk.actions.ready()
+
+      const supportsUser = !!sdk.user?.getInfo
+      const supportsAuth =
+        !!sdk.auth?.quickAuth || !!sdk.auth?.signIn || !!sdk.actions?.signIn
+
+      if (!supportsAuth) {
+        btnAuth.disabled = true
+        btnAuth.textContent = 'Open in Warpcast to Sign in'
+      }
+
+      if (supportsUser) {
         const info = await sdk.user.getInfo().catch(() => null)
         const name = info?.username || 'friend'
         hello.textContent = `👋 Hello, ${name}!`
@@ -88,47 +99,46 @@
           img.referrerPolicy = 'no-referrer'
           pfp.appendChild(img)
         }
-        log('SDK ready ✓', 'ok')
-      } catch (e) {
-        fallback.classList.remove('hide')
-        log('MiniApp init error: ' + (e?.message || e), 'err')
-        console.error(e)
+      } else {
+        hello.textContent = 'Hello!'
       }
-    })()
 
-    btnAuth.addEventListener('click', async () => {
-      statusEl.innerHTML = ''
-      log('Starting Quick Auth…')
-      try {
-        let jwt = null
+      log('SDK ready ✓', 'ok')
 
-        if (sdk.auth?.quickAuth) {
-          jwt = await sdk.auth.quickAuth()
-        } else if (sdk.auth?.signIn) {
-          const res = await sdk.auth.signIn()
-          jwt = res?.token || res?.jwt || null
-        } else if (sdk.actions?.signIn) {
-          const res = await sdk.actions.signIn()
-          jwt = res?.token || res?.jwt || null
+      btnAuth.addEventListener('click', async () => {
+        if (btnAuth.disabled) return
+        statusEl.innerHTML = ''
+        log('Starting Quick Auth…')
+        try {
+          let jwt = null
+          if (sdk.auth?.quickAuth) {
+            jwt = await sdk.auth.quickAuth()
+          } else if (sdk.auth?.signIn) {
+            const r = await sdk.auth.signIn(); jwt = r?.token || r?.jwt || null
+          } else if (sdk.actions?.signIn) {
+            const r = await sdk.actions.signIn(); jwt = r?.token || r?.jwt || null
+          }
+          if (!jwt) throw new Error('Auth not available in this client')
+
+          const short = String(jwt).slice(0, 48) + '…'
+          log('JWT received: ' + short, 'ok')
+
+          const resp = await fetch('/api/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: jwt })
+          })
+          const data = await resp.json().catch(() => ({}))
+          log('Backend reply:\n' + JSON.stringify(data, null, 2), resp.ok ? 'ok' : 'err')
+        } catch (e) {
+          log('Auth error: ' + (e?.message || e), 'err')
         }
+      })
 
-        if (!jwt) throw new Error('Auth method not available in this client/SDK version')
-
-        const short = String(jwt).slice(0, 48) + '…'
-        log('JWT received: ' + short, 'ok')
-
-        const resp = await fetch('/api/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: jwt })
-        })
-        const data = await resp.json().catch(() => ({}))
-        log('Backend reply:\n' + JSON.stringify(data, null, 2), resp.ok ? 'ok' : 'err')
-      } catch (e) {
-        log('Auth error: ' + (e?.message || e), 'err')
-        console.error(e)
-      }
-    })
+    } catch (e) {
+      fallback.classList.remove('hide')
+      log('MiniApp init error: ' + (e?.message || e), 'err')
+    }
   </script>
 </body>
 </html>
