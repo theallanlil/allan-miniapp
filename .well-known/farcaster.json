@@ -10,5 +10,11 @@
   },
   "contactEmail": "you@example.com",
   "permissions": [],
-  "version": 1
+  "version": 1,
+
+  "accountAssociation": {
+    "header": "eyJmaWQiOjY0ODUzMywidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweEY3YmZGMWVDQUU0M2MyOTVkQUI0OWQwMGUzZUM5YjM5MzM1MTJiYzIifQ",
+    "payload": "eyJkb21haW4iOiJhbGxhbi1taW5pYXBwLnZlcmNlbC5hcHAifQ",
+    "signature": "7JaBSbsYmzLulCfqG6rLt3VueOQ30Bp4sgUfkqwbO0EI9XM6ixRI8xbDPZHhBf+dlB1viIRKKLd4ACipLMPE2Rs="
+  }
 }
